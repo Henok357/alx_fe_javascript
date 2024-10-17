@@ -85,6 +85,7 @@ async function fetchQuotesFromServer() {
 
         const serverQuotes = await response.json();
         syncQuotes(serverQuotes);
+        notifyUser("Quotes synced with server!"); // Notify user of successful sync
     } catch (error) {
         console.error("Error fetching quotes from server:", error);
     }
