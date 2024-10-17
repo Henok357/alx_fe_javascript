@@ -53,12 +53,12 @@ async function postQuoteToServer(quote) {
         const response = await fetch(apiUrl, {
             method: "POST", // Method to post data
             headers: {
-                "Content-Type": "application/json" // Setting the content type
+                "Content-Type": "application/json", // Setting the content type
             },
             body: JSON.stringify({
                 body: quote.text, // Assuming 'body' is used for quote text
-                title: quote.category // Assuming 'title' is used for the category
-            })
+                title: quote.category, // Assuming 'title' is used for the category
+            }),
         });
 
         if (!response.ok) {
@@ -73,11 +73,70 @@ async function postQuoteToServer(quote) {
     }
 }
 
+// Function to fetch quotes from the server
+async function fetchQuotesFromServer() {
+    const apiUrl = "https://jsonplaceholder.typicode.com/posts"; // Mock API URL
+
+    try {
+        const response = await fetch(apiUrl);
+        if (!response.ok) {
+            throw new Error("Failed to fetch quotes from server");
+        }
+
+        const serverQuotes = await response.json();
+        syncQuotes(serverQuotes);
+    } catch (error) {
+        console.error("Error fetching quotes from server:", error);
+    }
+}
+
+// Function to sync quotes with server data
+function syncQuotes(serverQuotes) {
+    const serverQuoteIds = serverQuotes.map(quote => quote.id); // Assuming each quote has a unique ID
+    const localQuoteIds = quotes.map((quote, index) => index + 1); // Simple local IDs based on index for this simulation
+
+    serverQuotes.forEach(serverQuote => {
+        const localIndex = localQuoteIds.indexOf(serverQuote.id);
+        if (localIndex === -1) {
+            // If the quote does not exist locally, add it
+            quotes.push({ text: serverQuote.body, category: serverQuote.title, id: serverQuote.id });
+        } else {
+            // If a conflict is detected, update the local quote with the server data
+            quotes[localIndex].text = serverQuote.body;
+            quotes[localIndex].category = serverQuote.title;
+            notifyUser(`Quote "${serverQuote.body}" updated from the server.`); // Notify user about update
+        }
+    });
+
+    // Save updated quotes to local storage
+    saveQuotes();
+    displayQuotes();
+}
+
+// Function to notify users about updates
+function notifyUser(message) {
+    const notificationElement = document.createElement("div");
+    notificationElement.className = "notification";
+    notificationElement.innerText = message;
+    document.body.appendChild(notificationElement);
+
+    setTimeout(() => {
+        document.body.removeChild(notificationElement);
+    }, 3000); // Remove notification after 3 seconds
+}
+
+// Function to periodically check for new quotes from the server
+function startPeriodicFetch() {
+    fetchQuotesFromServer(); // Fetch immediately
+    setInterval(fetchQuotesFromServer, 30000); // Fetch every 30 seconds
+}
+
 // Function to populate categories dynamically
 function populateCategories() {
     const categoryFilter = document.getElementById("categoryFilter");
     const categories = [...new Set(quotes.map((quote) => quote.category))];
 
+    categoryFilter.innerHTML = ""; // Clear existing options
     categories.forEach((category) => {
         const option = document.createElement("option");
         option.value = category;
@@ -108,6 +167,7 @@ function filterQuotes() {
 // Load quotes on page load
 window.onload = function() {
     loadQuotes();
+    startPeriodicFetch(); // Start periodic fetching of quotes
     const lastSelectedCategory = localStorage.getItem("lastSelectedCategory") || "all";
     document.getElementById("categoryFilter").value = lastSelectedCategory;
     filterQuotes(); // Initial filtering based on last selected category
